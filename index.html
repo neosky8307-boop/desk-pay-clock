@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>월급 루팡 시계</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#000;
+  --ink:#ebe4f4;
+  --ink-dim:#8e869b;
+  --tick:#4a4556;
+  --accent:#ffd37a;
+  --panel:#16141b;
+  --line:#2c2834;
+  --num:"Barlow Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none}
+
+/* ---------- stage ---------- */
+.stage{height:100%;display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);
+  align-items:center;gap:3vw;padding:3vh 4vw;transition:transform 2s ease}
+
+.photo{position:relative;justify-self:center;height:min(78dvh,100%);aspect-ratio:5/6;max-width:100%;
+  border-radius:clamp(10px,2.2vmin,22px);overflow:hidden;background:#111;container-type:inline-size}
+.photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.photo::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to bottom,rgba(0,0,0,.35),transparent 22%,transparent 55%,rgba(0,0,0,.6))}
+.ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2cqw;
+  background:radial-gradient(120% 90% at 30% 20%,#3a3347,#17141d);color:var(--ink-dim);font-size:5cqw;cursor:pointer}
+.ph b{font-size:26cqw;font-weight:400;line-height:1}
+.label{position:absolute;left:6cqw;top:5cqw;z-index:2;font-size:6cqw;color:rgba(255,255,255,.88);
+  text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.money{position:absolute;left:5cqw;bottom:4cqw;z-index:2;font-family:var(--num);font-weight:600;
+  font-size:15cqw;line-height:1;letter-spacing:.01em;color:#fff;font-variant-numeric:tabular-nums;
+  text-shadow:0 2px 12px rgba(0,0,0,.7);white-space:nowrap}
+.money.bump{animation:bump .9s ease-out}
+@keyframes bump{0%{color:var(--accent);text-shadow:0 0 18px rgba(255,211,122,.8)}100%{color:#fff}}
+
+.clock{position:relative;justify-self:center;height:min(78dvh,100%);aspect-ratio:1/1;max-width:100%;container-type:inline-size}
+.clock svg{position:absolute;inset:0;width:100%;height:100%}
+.clock .tick{stroke:var(--tick);stroke-width:2.2;stroke-linecap:round}
+.clock .tick.five{stroke:#6d6680;stroke-width:2.8}
+.clock .tick.on{stroke:var(--accent)}
+.time{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--num);font-weight:600;font-size:33cqw;line-height:1;color:var(--ink);
+  font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.time i{font-style:normal;margin:0 .02em;position:relative;top:-.02em}
+
+@media (orientation:portrait){
+  .stage{grid-template-columns:1fr;grid-template-rows:auto auto;align-content:center;gap:4vh;padding:4vh 6vw}
+  .photo{height:auto;width:min(78vw,38dvh*1.2);aspect-ratio:5/4}
+  .clock{height:auto;width:min(70vw,38dvh)}
+}
+
+/* ---------- controls ---------- */
+.gear{position:fixed;right:max(12px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 8px);
+  z-index:5;width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:var(--ink-dim);
+  opacity:.28;font-size:22px;cursor:pointer}
+.gear:focus-visible{opacity:1;outline:2px solid var(--accent)}
+.gear:hover{opacity:.8}
+
+.sheet{position:fixed;inset:0;z-index:10;display:none;background:rgba(0,0,0,.72);
+  align-items:flex-end;justify-content:center}
+.sheet.open{display:flex}
+.card{width:min(560px,100%);max-height:92dvh;overflow:auto;background:var(--panel);border:1px solid var(--line);
+  border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));user-select:text}
+@media (min-width:700px) and (min-height:560px){.sheet{align-items:center}.card{border-radius:18px}}
+.card h2{margin:0 0 4px;font-size:18px}
+.card p.sub{margin:0 0 14px;color:var(--ink-dim);font-size:13px;line-height:1.5}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.f{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.row .f{margin-bottom:0}
+.f label{font-size:13px;color:var(--ink-dim)}
+.f input,.f select{font:inherit;font-size:16px;color:var(--ink);background:#0d0c10;border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;min-height:44px;width:100%}
+.f input:focus-visible,.f select:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chk{display:flex;align-items:center;gap:10px;margin:4px 0 12px;font-size:15px;min-height:44px}
+.chk input{width:20px;height:20px;accent-color:var(--accent)}
+.sum{background:#0d0c10;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:6px 0 14px;
+  font-size:14px;line-height:1.7;color:var(--ink)}
+.sum b{color:var(--accent);font-family:var(--num);font-size:17px;font-weight:600}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-size:15px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);
+  background:#201d27;color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1a1405;font-weight:600;margin-left:auto}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);
+  z-index:20;background:#2a2633;color:var(--ink);padding:10px 16px;border-radius:10px;font-size:14px;display:none}
+.toast.show{display:block}
+input[type=file]{display:none}
+@media (prefers-reduced-motion:reduce){.money.bump{animation:none}.stage{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="photo" id="photo">
+    <div class="ph" id="ph" role="button" tabindex="0"><b>🐈</b><span>눌러서 사진 넣기</span></div>
+    <img id="img" alt="" hidden>
+    <div class="label" id="label">오늘</div>
+    <div class="money" id="money">₩0</div>
+  </div>
+  <div class="clock">
+    <svg viewBox="-100 -100 200 200" aria-hidden="true" id="ring"></svg>
+    <div class="time" id="time" aria-live="off">00<i>:</i>00</div>
+  </div>
+</div>
+
+<button class="gear" id="gear" aria-label="설정 열기">⚙</button>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="ttl">
+  <div class="card">
+    <h2 id="ttl">설정</h2>
+    <p class="sub">입력한 값은 이 기기 브라우저에만 저장돼요.</p>
+
+    <div class="row">
+      <div class="f"><label for="basis">급여 기준</label>
+        <select id="basis"><option value="monthly">월급 (세전)</option><option value="annual">연봉 (세전)</option></select></div>
+      <div class="f"><label for="salary">금액 (원)</label>
+        <input id="salary" type="number" inputmode="numeric" min="0" step="10000"></div>
+    </div>
+    <div class="row">
+      <div class="f"><label for="start">출근 시각</label><input id="start" type="time"></div>
+      <div class="f"><label for="end">퇴근 시각</label><input id="end" type="time"></div>
+    </div>
+    <div class="row">
+      <div class="f"><label for="breakStart">쉬는 시간 시작</label><input id="breakStart" type="time"></div>
+      <div class="f"><label for="breakMin">쉬는 시간 (분)</label><input id="breakMin" type="number" inputmode="numeric" min="0" max="240" step="5"></div>
+    </div>
+    <div class="row">
+      <div class="f"><label for="workdays">이번 달 근무일수</label>
+        <input id="workdays" type="number" inputmode="numeric" min="0" max="31" placeholder="비우면 평일 자동 계산"></div>
+      <div class="f"><label for="interval">금액 올라가는 간격</label>
+        <select id="interval"><option value="1">1초</option><option value="5">5초</option><option value="10">10초</option><option value="30">30초</option></select></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="weekend"> 주말에도 계산하기</label>
+    <label class="chk"><input type="checkbox" id="keepAwake"> 화면 계속 켜두기</label>
+
+    <div class="sum" id="sum"></div>
+
+    <div class="btns">
+      <button class="btn" id="pick">사진 바꾸기</button>
+      <button class="btn" id="clearImg">사진 지우기</button>
+      <button class="btn" id="full">전체화면</button>
+      <button class="btn primary" id="done">저장</button>
+    </div>
+    <input type="file" id="file" accept="image/*">
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  var KEY='deskpay.v1', IMG='deskpay.img';
+  var D={salary:5000000,basis:'monthly',start:'09:00',end:'18:00',breakStart:'12:00',breakMin:60,
+         workdays:'',interval:5,weekend:false,keepAwake:true};
+  var cfg=Object.assign({},D), photo=null;
+  var $=function(id){return document.getElementById(id)};
+
+  try{var s=localStorage.getItem(KEY); if(s) cfg=Object.assign({},D,JSON.parse(s));}catch(e){}
+  try{photo=localStorage.getItem(IMG);}catch(e){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(cfg));}catch(e){}}
+
+  /* ---------- calc ---------- */
+  function hm(t){var p=String(t||'0:0').split(':');return (parseInt(p[0],10)*60+parseInt(p[1],10))*60;}
+  function weekdays(y,m){var n=0,last=new Date(y,m+1,0).getDate();
+    for(var i=1;i<=last;i++){var w=new Date(y,m,i).getDay(); if(w!==0&&w!==6)n++;} return n;}
+  function model(now){
+    var monthly=cfg.basis==='annual'?cfg.salary/12:cfg.salary;
+    var wd=Number(cfg.workdays)>0?Number(cfg.workdays):weekdays(now.getFullYear(),now.getMonth());
+    var daily=monthly/Math.max(1,wd);
+    var S=hm(cfg.start),E=hm(cfg.end),B1=hm(cfg.breakStart),B2=B1+(Number(cfg.breakMin)||0)*60;
+    var ov=function(a,b){return Math.max(0,Math.min(b,B2)-Math.max(a,B1));};
+    var total=Math.max(1,(E-S)-ov(S,E));
+    return {monthly:monthly,wd:wd,daily:daily,S:S,E:E,B1:B1,B2:B2,ov:ov,total:total,hourly:daily/(total/3600)};
+  }
+  function calc(now){
+    var m=model(now), sec=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+    var iv=Number(cfg.interval)||5, q=Math.floor(sec/iv)*iv;
+    var c=Math.min(Math.max(q,m.S),m.E);
+    var paid=Math.max(0,(c-m.S)-m.ov(m.S,c));
+    var amt=m.daily*paid/m.total, label='오늘';
+    var wk=(now.getDay()===0||now.getDay()===6);
+    if(wk&&!cfg.weekend){amt=0;label='휴일';}
+    else if(sec<m.S)label='출근 전';
+    else if(sec>=m.E)label='퇴근';
+    else if(sec>=m.B1&&sec<m.B2)label='쉬는 시간';
+    return {amt:Math.floor(amt),label:label};
+  }
+  var won=function(n){return '₩'+Math.round(n).toLocaleString('ko-KR');};
+
+  /* ---------- ring ---------- */
+  (function(){
+    var svg=$('ring'),R=80,len,h='';
+    for(var i=0;i<60;i++){
+      var t=i*Math.PI/30, dx=Math.sin(t), dy=-Math.cos(t);
+      var r=1/Math.pow(Math.pow(Math.abs(dx),4)+Math.pow(Math.abs(dy),4),.25), rho=R*r;
+      len=(i%5===0)?11:6;
+      h+='<line class="tick'+(i%5===0?' five':'')+'" data-i="'+i+'" x1="'+(dx*rho).toFixed(2)+'" y1="'+(dy*rho).toFixed(2)+
+         '" x2="'+(dx*(rho-len)).toFixed(2)+'" y2="'+(dy*(rho-len)).toFixed(2)+'"/>';
+    }
+    svg.innerHTML=h;
+  })();
+  var ticks=document.querySelectorAll('.tick'), lastSec=-1;
+
+  /* ---------- render ---------- */
+  var lastAmt=null, lastMin=-1;
+  function pad(n){return n<10?'0'+n:''+n;}
+  function render(){
+    var now=new Date(), mi=now.getMinutes();
+    if(mi!==lastMin){
+      lastMin=mi;
+      $('time').innerHTML=pad(now.getHours())+'<i>:</i>'+pad(mi);
+      // burn-in guard: nudge layout a few px each minute
+      $('stage').style.transform='translate('+((Math.random()*10-5)|0)+'px,'+((Math.random()*10-5)|0)+'px)';
+    }
+    var sc=now.getSeconds();
+    if(sc!==lastSec){
+      if(lastSec>=0)ticks[lastSec].classList.remove('on');
+      ticks[sc].classList.add('on'); lastSec=sc;
+    }
+    var r=calc(now);
+    if(r.amt!==lastAmt){
+      $('money').textContent=won(r.amt);
+      if(lastAmt!==null&&r.amt>lastAmt){var m=$('money');m.classList.remove('bump');void m.offsetWidth;m.classList.add('bump');}
+      lastAmt=r.amt;
+    }
+    if($('label').textContent!==r.label)$('label').textContent=r.label;
+  }
+  setInterval(render,250); render();
+
+  /* ---------- photo ---------- */
+  function applyImg(){
+    if(photo){$('img').src=photo;$('img').hidden=false;$('ph').style.display='none';}
+    else{$('img').hidden=true;$('img').removeAttribute('src');$('ph').style.display='flex';}
+  }
+  applyImg();
+  function toast(t){var el=$('toast');el.textContent=t;el.classList.add('show');setTimeout(function(){el.classList.remove('show')},2600);}
+  function loadFile(f){
+    if(!f)return;
+    var fr=new FileReader();
+    fr.onload=function(){
+      var im=new Image();
+      im.onload=function(){
+        var k=Math.min(1,900/Math.max(im.width,im.height)), c=document.createElement('canvas');
+        c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+        c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        photo=c.toDataURL('image/jpeg',.85);
+        try{localStorage.setItem(IMG,photo);}catch(e){toast('저장 공간이 부족해서 이번 접속에서만 보여요');}
+        applyImg();
+      };
+      im.src=fr.result;
+    };
+    fr.readAsDataURL(f);
+  }
+  $('file').addEventListener('change',function(e){loadFile(e.target.files[0]);e.target.value='';});
+  $('pick').onclick=function(){$('file').click();};
+  $('ph').onclick=function(){$('file').click();};
+  $('ph').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click();}};
+  $('clearImg').onclick=function(){photo=null;try{localStorage.removeItem(IMG);}catch(e){}applyImg();};
+
+  /* ---------- wake lock / fullscreen ---------- */
+  var lock=null;
+  function wake(){
+    if(!cfg.keepAwake||!('wakeLock' in navigator))return;
+    navigator.wakeLock.request('screen').then(function(l){lock=l;}).catch(function(){});
+  }
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')wake();});
+  document.addEventListener('pointerdown',function once(){wake();document.removeEventListener('pointerdown',once);});
+  $('full').onclick=function(){
+    var el=document.documentElement;
+    try{ if(document.fullscreenElement){document.exitFullscreen();} else if(el.requestFullscreen){el.requestFullscreen();} else toast('이 브라우저는 전체화면을 지원하지 않아요'); }catch(e){}
+  };
+
+  /* ---------- settings ---------- */
+  var ids=['basis','salary','start','end','breakStart','breakMin','workdays','interval'];
+  function fill(){
+    ids.forEach(function(k){$(k).value=cfg[k];});
+    $('weekend').checked=!!cfg.weekend; $('keepAwake').checked=!!cfg.keepAwake;
+    summary();
+  }
+  function read(){
+    var o={};
+    ids.forEach(function(k){o[k]=$(k).value;});
+    o.salary=Number(o.salary)||0; o.breakMin=Number(o.breakMin)||0; o.interval=Number(o.interval)||5;
+    o.weekend=$('weekend').checked; o.keepAwake=$('keepAwake').checked;
+    return o;
+  }
+  function summary(){
+    var keep=cfg; cfg=Object.assign({},cfg,read());
+    var m=model(new Date()), iv=cfg.interval, step=m.hourly*iv/3600;
+    $('sum').innerHTML='월 환산 <b>'+won(m.monthly)+'</b> · 근무일 '+m.wd+'일<br>'
+      +'일당 <b>'+won(m.daily)+'</b> · 시급 <b>'+won(m.hourly)+'</b><br>'
+      +iv+'초마다 약 <b>'+won(step)+'</b>씩 올라가요 · 실근무 '+(m.total/3600).toFixed(1)+'시간';
+    cfg=keep;
+  }
+  ids.concat(['weekend','keepAwake']).forEach(function(k){$(k).addEventListener('input',summary);});
+  function open(){fill();$('sheet').classList.add('open');}
+  function close(){$('sheet').classList.remove('open');}
+  $('gear').onclick=open;
+  $('done').onclick=function(){cfg=Object.assign({},cfg,read());save();lastAmt=null;lastMin=-1;render();wake();close();};
+  $('sheet').addEventListener('click',function(e){if(e.target===$('sheet'))close();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+
+  // first run: open settings so the salary can be entered
+  var seen=false; try{seen=localStorage.getItem(KEY)!==null;}catch(e){}
+  if(!seen)open();
+})();
+
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+</body>
+</html>
