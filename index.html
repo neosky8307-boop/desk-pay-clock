@@ -36,7 +36,7 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);
 .stage{height:100%;display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);
   align-items:center;gap:3vw;padding:3vh 4vw;transition:transform 2s ease}
 
-.photo{position:relative;justify-self:center;height:min(78dvh,100%);aspect-ratio:5/6;max-width:100%;
+.photo{cursor:pointer;position:relative;justify-self:center;height:min(78dvh,100%);aspect-ratio:5/6;max-width:100%;
   border-radius:clamp(10px,2.2vmin,22px);overflow:hidden;background:#111;container-type:inline-size}
 .photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .photo::after{content:"";position:absolute;inset:0;pointer-events:none;
@@ -110,7 +110,7 @@ input[type=file]{display:none}
 
 <div class="stage" id="stage">
   <div class="photo" id="photo">
-    <div class="ph" id="ph" role="button" tabindex="0"><b>🐈</b><span>눌러서 사진 넣기</span></div>
+    <div class="ph" id="ph"><b>🐈</b><span>눌러서 사진 넣기</span></div>
     <img id="img" alt="" hidden>
     <div class="label" id="label">오늘</div>
     <div class="money" id="money">₩0</div>
@@ -130,16 +130,16 @@ input[type=file]{display:none}
 
     <div class="row">
       <div class="f"><label for="basis">급여 기준</label>
-        <select id="basis"><option value="monthly">월급 (세전)</option><option value="annual">연봉 (세전)</option></select></div>
+        <select id="basis"><option value="monthly">월급 (세전)</option><option value="monthly_net">월급 (세후)</option><option value="annual">연봉 (세전)</option><option value="annual_net">연봉 (세후)</option></select></div>
       <div class="f"><label for="salary">금액 (원)</label>
         <input id="salary" type="number" inputmode="numeric" min="0" step="10000"></div>
     </div>
     <div class="row">
-      <div class="f"><label for="start">출근 시각</label><input id="start" type="time"></div>
-      <div class="f"><label for="end">퇴근 시각</label><input id="end" type="time"></div>
+      <div class="f"><label for="start">출근 시각</label><input id="start" type="text" inputmode="numeric" placeholder="09:00" maxlength="5" autocomplete="off"></div>
+      <div class="f"><label for="end">퇴근 시각</label><input id="end" type="text" inputmode="numeric" placeholder="18:00" maxlength="5" autocomplete="off"></div>
     </div>
     <div class="row">
-      <div class="f"><label for="breakStart">쉬는 시간 시작</label><input id="breakStart" type="time"></div>
+      <div class="f"><label for="breakStart">쉬는 시간 시작</label><input id="breakStart" type="text" inputmode="numeric" placeholder="12:00" maxlength="5" autocomplete="off"></div>
       <div class="f"><label for="breakMin">쉬는 시간 (분)</label><input id="breakMin" type="number" inputmode="numeric" min="0" max="240" step="5"></div>
     </div>
     <div class="row">
@@ -181,7 +181,7 @@ input[type=file]{display:none}
   function weekdays(y,m){var n=0,last=new Date(y,m+1,0).getDate();
     for(var i=1;i<=last;i++){var w=new Date(y,m,i).getDay(); if(w!==0&&w!==6)n++;} return n;}
   function model(now){
-    var monthly=cfg.basis==='annual'?cfg.salary/12:cfg.salary;
+    var monthly=String(cfg.basis).indexOf('annual')===0?cfg.salary/12:cfg.salary;
     var wd=Number(cfg.workdays)>0?Number(cfg.workdays):weekdays(now.getFullYear(),now.getMonth());
     var daily=monthly/Math.max(1,wd);
     var S=hm(cfg.start),E=hm(cfg.end),B1=hm(cfg.breakStart),B2=B1+(Number(cfg.breakMin)||0)*60;
@@ -221,6 +221,14 @@ input[type=file]{display:none}
   /* ---------- render ---------- */
   var lastAmt=null, lastMin=-1;
   function pad(n){return n<10?'0'+n:''+n;}
+  function normTime(v,fb){
+    v=String(v==null?'':v).trim(); var h,m;
+    if(v.indexOf(':')>-1){var p=v.split(':');h=parseInt(p[0],10);m=parseInt((p[1]||'0').replace(/\D/g,'')||'0',10);}
+    else{var d=v.replace(/\D/g,'');
+      if(d.length<=2){h=parseInt(d,10);m=0;}else{h=parseInt(d.slice(0,d.length-2),10);m=parseInt(d.slice(-2),10);}}
+    if(isNaN(h)||isNaN(m)||h>23||m>59)return fb;
+    return pad(h)+':'+pad(m);
+  }
   function render(){
     var now=new Date(), mi=now.getMinutes();
     if(mi!==lastMin){
@@ -270,8 +278,10 @@ input[type=file]{display:none}
   }
   $('file').addEventListener('change',function(e){loadFile(e.target.files[0]);e.target.value='';});
   $('pick').onclick=function(){$('file').click();};
-  $('ph').onclick=function(){$('file').click();};
-  $('ph').onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click();}};
+  var ph=$('photo');
+  ph.setAttribute('role','button');ph.setAttribute('tabindex','0');ph.setAttribute('aria-label','사진 바꾸기');
+  ph.onclick=function(){$('file').click();};
+  ph.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();$('file').click();}};
   $('clearImg').onclick=function(){photo=null;try{localStorage.removeItem(IMG);}catch(e){}applyImg();};
 
   /* ---------- wake lock / fullscreen ---------- */
@@ -297,6 +307,7 @@ input[type=file]{display:none}
   function read(){
     var o={};
     ids.forEach(function(k){o[k]=$(k).value;});
+    ['start','end','breakStart'].forEach(function(k){o[k]=normTime(o[k],cfg[k]);});
     o.salary=Number(o.salary)||0; o.breakMin=Number(o.breakMin)||0; o.interval=Number(o.interval)||5;
     o.weekend=$('weekend').checked; o.keepAwake=$('keepAwake').checked;
     return o;
@@ -304,12 +315,17 @@ input[type=file]{display:none}
   function summary(){
     var keep=cfg; cfg=Object.assign({},cfg,read());
     var m=model(new Date()), iv=cfg.interval, step=m.hourly*iv/3600;
-    $('sum').innerHTML='월 환산 <b>'+won(m.monthly)+'</b> · 근무일 '+m.wd+'일<br>'
+    var net=/_net$/.test(cfg.basis);
+    $('sum').innerHTML=(net?'세후 ':'세전 ')+'월 환산 <b>'+won(m.monthly)+'</b> · 근무일 '+m.wd+'일<br>'
       +'일당 <b>'+won(m.daily)+'</b> · 시급 <b>'+won(m.hourly)+'</b><br>'
       +iv+'초마다 약 <b>'+won(step)+'</b>씩 올라가요 · 실근무 '+(m.total/3600).toFixed(1)+'시간';
     cfg=keep;
   }
   ids.concat(['weekend','keepAwake']).forEach(function(k){$(k).addEventListener('input',summary);});
+  ['start','end','breakStart'].forEach(function(k){
+    $(k).addEventListener('change',function(){$(k).value=normTime($(k).value,cfg[k]);summary();});
+    $(k).addEventListener('focus',function(){try{$(k).select();}catch(e){}});
+  });
   function open(){fill();$('sheet').classList.add('open');}
   function close(){$('sheet').classList.remove('open');}
   $('gear').onclick=open;
